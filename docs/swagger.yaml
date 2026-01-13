@@ -1,0 +1,131 @@
+basePath: /api/v1
+definitions:
+  model.CompareRequest:
+    description: Request payload for comparing two API responses
+    properties:
+      destination:
+        allOf:
+        - $ref: '#/definitions/model.Response'
+        description: Destination response to compare against
+      source:
+        allOf:
+        - $ref: '#/definitions/model.Response'
+        description: Source response to compare
+    type: object
+  model.CompareResponse:
+    description: Response containing the comparison result with differences
+    properties:
+      differences:
+        description: List of differences found between the responses
+        items:
+          $ref: '#/definitions/model.Difference'
+        type: array
+      id:
+        description: Unique identifier for the comparison
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_equal:
+        description: Whether the responses are equal
+        example: false
+        type: boolean
+    type: object
+  model.Difference:
+    description: Details about a specific difference found between responses
+    properties:
+      description:
+        description: Human-readable description of the difference
+        example: 'Status codes differ: 200 vs 404'
+        type: string
+      dest_value:
+        description: 'Value in the destination response (can be any type: string,
+          number, boolean, etc.)'
+      path:
+        description: Path to the difference (e.g., "body.user.name", "headers.Content-Type")
+        example: status
+        type: string
+      source_value:
+        description: 'Value in the source response (can be any type: string, number,
+          boolean, etc.)'
+      type:
+        description: Type of difference (status, header, body, missing, extra)
+        example: status
+        type: string
+    type: object
+  model.ErrorResponse:
+    description: Error response structure
+    properties:
+      error:
+        description: Error type or code
+        example: Invalid request body
+        type: string
+      message:
+        description: Detailed error message
+        example: Failed to parse JSON
+        type: string
+    type: object
+  model.Response:
+    description: API response structure containing status, headers, and body
+    properties:
+      body:
+        description: Response body as bytes (base64 encoded in JSON)
+        items:
+          type: integer
+        type: array
+      headers:
+        additionalProperties:
+          type: string
+        description: HTTP headers
+        type: object
+      status:
+        description: HTTP status code
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://www.example.com/support
+  description: API for comparing API responses and detecting differences
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Checker API
+  version: "1.0"
+paths:
+  /compare:
+    post:
+      consumes:
+      - application/json
+      description: Compares two API responses and returns the differences between
+        them
+      parameters:
+      - description: Comparison request with source and destination responses
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CompareRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Comparison result
+          schema:
+            $ref: '#/definitions/model.CompareResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Compare two API responses
+      tags:
+      - comparisons
+schemes:
+- http
+- https
+swagger: "2.0"

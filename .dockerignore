@@ -1,0 +1,53 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# LocalStack initialization scripts
+scripts/localstack-init.sh
