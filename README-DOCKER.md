@@ -63,7 +63,7 @@ Las variables de entorno están configuradas en `docker-compose.yml`:
 
 ### Recursos creados automáticamente
 
-El script de inicialización (`scripts/localstack-init.sh`) crea automáticamente:
+Los scripts de inicialización en `localstack-init/` crean automáticamente:
 
 1. **Tabla DynamoDB**: `comparisons`
    - Clave primaria: `id` (String)

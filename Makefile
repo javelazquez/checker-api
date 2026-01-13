@@ -1,4 +1,4 @@
-.PHONY: run test build clean deps help swagger swagger-serve dev docker-build docker-up docker-down docker-logs docker-restart docker-clean docker-rebuild docker-ps docker-logs-api docker-logs-localstack docker-up-build docker-init-resources docker-up-init docker-check-resources
+.PHONY: run test build clean deps help swagger swagger-serve dev docker-build docker-up docker-down docker-logs docker-restart docker-clean docker-rebuild docker-ps docker-logs-api docker-logs-localstack docker-up-build docker-init-resources docker-up-init docker-check-resources docker-sqs-list
 
 # Variables
 BINARY_NAME=checker-api
@@ -71,6 +71,7 @@ help:
 	@echo "  $(YELLOW)make docker-init-resources$(NC) - Create DynamoDB table and SQS queue in LocalStack"
 	@echo "  $(YELLOW)make docker-up-init$(NC)       - Start containers and initialize resources"
 	@echo "  $(YELLOW)make docker-check-resources$(NC) - Check if DynamoDB table and SQS queue exist"
+	@echo "  $(YELLOW)make docker-sqs-list$(NC)        - List SQS queues (equivalent to awslocal sqs list-queues)"
 
 ## run: Run the application
 run:
@@ -158,14 +159,15 @@ docker-build: check-docker
 	@$(DOCKER_COMPOSE_CMD) build
 
 ## docker-up: Start Docker containers
-docker-up: check-docker build-init-script
+docker-up: check-docker
 	@echo "$(GREEN)Starting Docker containers...$(NC)"
 	@$(DOCKER_COMPOSE_CMD) up -d
 	@echo "$(GREEN)Containers started. API available at http://localhost:8080$(NC)"
 	@echo "$(GREEN)LocalStack available at http://localhost:4566$(NC)"
+	@echo "$(YELLOW)ℹ️  Resources (DynamoDB table and SQS queue) are created automatically$(NC)"
 
 ## docker-up-build: Build and start Docker containers
-docker-up-build: check-docker build-init-script docker-build docker-up
+docker-up-build: check-docker docker-build docker-up
 
 ## docker-down: Stop Docker containers
 docker-down: check-docker
@@ -212,88 +214,16 @@ docker-ps: check-docker
 	@echo "$(GREEN)Running Docker containers:$(NC)"
 	@$(DOCKER_COMPOSE_CMD) ps
 
-## build-init-script: Build the LocalStack initialization script
-build-init-script:
-	@echo "$(GREEN)Compilando script de inicialización...$(NC)"
-	@cd scripts && go build -o localstack-init localstack-init.go
-	@echo "$(GREEN)✅ Script compilado: scripts/localstack-init$(NC)"
-
-## docker-init-resources: Create DynamoDB table and SQS queue in LocalStack
+## docker-init-resources: Verify DynamoDB table and SQS queue in LocalStack
+## Note: Resources are created automatically by LocalStack init scripts in localstack-init/
 docker-init-resources: check-docker
-	@echo "$(GREEN)Creando recursos en LocalStack...$(NC)"
-	@echo "$(YELLOW)Esperando a que LocalStack esté listo...$(NC)"
-	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if curl -s http://localhost:4566/_localstack/health >/dev/null 2>&1; then \
-			echo "$(GREEN)LocalStack está listo$(NC)"; \
-			break; \
-		fi; \
-		if [ $$i -eq 10 ]; then \
-			echo "$(RED)Error: LocalStack no está disponible$(NC)"; \
-			echo "$(YELLOW)Por favor ejecuta: make docker-up$(NC)"; \
-			exit 1; \
-		fi; \
-		sleep 2; \
-	done
-	@echo "$(GREEN)Creando tabla DynamoDB: comparisons$(NC)"
-	@curl -s -X POST http://localhost:4566/ \
-		-H "Content-Type: application/x-amz-json-1.0" \
-		-H "X-Amz-Target: DynamoDB_20120810.CreateTable" \
-		-d '{"TableName":"comparisons","AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"}],"KeySchema":[{"AttributeName":"id","KeyType":"HASH"}],"BillingMode":"PAY_PER_REQUEST"}' \
-		>/dev/null 2>&1 && echo "$(GREEN)✅ Tabla DynamoDB creada$(NC)" || echo "$(YELLOW)ℹ️  La tabla ya existe o hubo un error$(NC)"
-	@echo "$(GREEN)Creando cola SQS: comparison-queue$(NC)"
-	@GET_RESPONSE=$$(curl -s -X POST http://localhost:4566/ \
-		-H "Content-Type: application/x-amz-json-1.0" \
-		-H "X-Amz-Target: AWSSimpleQueueServiceV20121105.GetQueueUrl" \
-		-d '{"QueueName":"comparison-queue"}' 2>&1); \
-	if echo "$$GET_RESPONSE" | grep -q "QueueUrl"; then \
-		QUEUE_URL=$$(echo "$$GET_RESPONSE" | grep -o '"QueueUrl":"[^"]*"' | cut -d'"' -f4); \
-		echo "$(GREEN)✅ Cola SQS ya existe: $$QUEUE_URL$(NC)"; \
-	else \
-		echo "$(YELLOW)La cola no existe, creándola...$(NC)"; \
-		CREATE_RESPONSE=$$(curl -s -w "\n%{http_code}" -X POST http://localhost:4566/ \
-			-H "Content-Type: application/x-amz-json-1.0" \
-			-H "X-Amz-Target: AWSSimpleQueueServiceV20121105.CreateQueue" \
-			-d '{"QueueName":"comparison-queue"}' 2>&1); \
-		HTTP_CODE=$$(echo "$$CREATE_RESPONSE" | tail -n1); \
-		BODY=$$(echo "$$CREATE_RESPONSE" | sed '$$d'); \
-		if [ "$$HTTP_CODE" = "200" ] || echo "$$BODY" | grep -q "QueueUrl"; then \
-			echo "$(GREEN)✅ Cola SQS creada exitosamente$(NC)"; \
-			if echo "$$BODY" | grep -q "QueueUrl"; then \
-				QUEUE_URL=$$(echo "$$BODY" | grep -o '"QueueUrl":"[^"]*"' | cut -d'"' -f4); \
-				echo "$(GREEN)   URL: $$QUEUE_URL$(NC)"; \
-			fi; \
-		else \
-			if echo "$$BODY" | grep -q "QueueAlreadyExists" || echo "$$BODY" | grep -q "QueueAlreadyExistsException"; then \
-				echo "$(YELLOW)ℹ️  La cola ya existe (creada por otro proceso)$(NC)"; \
-			else \
-				echo "$(YELLOW)⚠️  HTTP Code: $$HTTP_CODE$(NC)"; \
-				echo "$(YELLOW)⚠️  Respuesta: $$BODY$(NC)"; \
-			fi; \
-		fi; \
-		echo "$(YELLOW)Esperando a que la cola esté disponible...$(NC)"; \
-		QUEUE_VERIFIED=0; \
-		for i in 1 2 3 4 5; do \
-			sleep 3; \
-			GET_RESPONSE=$$(curl -s -X POST http://localhost:4566/ \
-				-H "Content-Type: application/x-amz-json-1.0" \
-				-H "X-Amz-Target: AWSSimpleQueueServiceV20121105.GetQueueUrl" \
-				-d '{"QueueName":"comparison-queue"}' 2>&1); \
-			if [ -n "$$GET_RESPONSE" ] && echo "$$GET_RESPONSE" | grep -q "QueueUrl"; then \
-				QUEUE_URL=$$(echo "$$GET_RESPONSE" | grep -o '"QueueUrl":"[^"]*"' | cut -d'"' -f4); \
-				echo "$(GREEN)✅ Cola SQS verificada (intento $$i): $$QUEUE_URL$(NC)"; \
-				QUEUE_VERIFIED=1; \
-				break; \
-			fi; \
-		done; \
-		if [ $$QUEUE_VERIFIED -eq 0 ]; then \
-			echo "$(YELLOW)⚠️  No se pudo verificar inmediatamente, pero la cola puede existir$(NC)"; \
-			echo "$(YELLOW)   Verifica con: make docker-check-resources$(NC)"; \
-		fi; \
-	fi
-	@echo "$(GREEN)✅ Recursos inicializados$(NC)"
+	@echo "$(GREEN)Verificando recursos en LocalStack...$(NC)"
+	@echo "$(YELLOW)ℹ️  Los recursos se crean automáticamente al iniciar LocalStack$(NC)"
+	@echo "$(YELLOW)   (scripts en localstack-init/)$(NC)"
+	@$(MAKE) docker-check-resources
 
-## docker-up-init: Start containers and initialize resources
-docker-up-init: build-init-script docker-up docker-init-resources
+## docker-up-init: Start containers and verify resources
+docker-up-init: docker-up docker-init-resources
 	@echo "$(GREEN)✅ Aplicación lista para usar$(NC)"
 	@echo "$(YELLOW)API disponible en: http://localhost:8080$(NC)"
 	@echo "$(YELLOW)Swagger UI: http://localhost:8080/swagger/index.html$(NC)"
@@ -337,33 +267,73 @@ docker-check-resources: check-docker
 	@echo "$(BLUE)════════════════════════════════════════$(NC)"
 	@echo "$(YELLOW)Colas SQS:$(NC)"
 	@echo "$(BLUE)════════════════════════════════════════$(NC)"
+	@echo "$(YELLOW)Verificando cola 'comparison-queue'...$(NC)"
 	@GET_QUEUE_RESPONSE=$$(curl -s -X POST http://localhost:4566/ \
 		-H "Content-Type: application/x-amz-json-1.0" \
 		-H "X-Amz-Target: AWSSimpleQueueServiceV20121105.GetQueueUrl" \
-		-d '{"QueueName":"comparison-queue"}' 2>/dev/null); \
+		-d '{"QueueName":"comparison-queue"}' 2>&1); \
 	if [ -n "$$GET_QUEUE_RESPONSE" ] && echo "$$GET_QUEUE_RESPONSE" | grep -q "QueueUrl"; then \
-		QUEUE_URL=$$(echo "$$GET_QUEUE_RESPONSE" | grep -o '"QueueUrl":"[^"]*"' | cut -d'"' -f4); \
+		QUEUE_URL=$$(echo "$$GET_QUEUE_RESPONSE" | sed 's/.*"QueueUrl":"\([^"]*\)".*/\1/'); \
+		if [ -z "$$QUEUE_URL" ] || [ "$$QUEUE_URL" = "$$GET_QUEUE_RESPONSE" ]; then \
+			QUEUE_URL=$$(echo "$$GET_QUEUE_RESPONSE" | grep -o '"QueueUrl":"[^"]*"' | cut -d'"' -f4); \
+		fi; \
 		echo "$(GREEN)✅ Cola 'comparison-queue' existe$(NC)"; \
-		echo "$(GREEN)   URL: $$QUEUE_URL$(NC)"; \
+		echo "$(GREEN)   URL devuelta por LocalStack: $$QUEUE_URL$(NC)"; \
+		ACCOUNT_ID=$$(echo "$$QUEUE_URL" | sed 's|.*://[^/]*/\([^/]*\)/.*|\1|'); \
+		if [ -n "$$ACCOUNT_ID" ] && [ "$$ACCOUNT_ID" != "$$QUEUE_URL" ]; then \
+			echo "$(GREEN)   Account ID detectado: $$ACCOUNT_ID$(NC)"; \
+			if [ "$$ACCOUNT_ID" != "000000000000" ]; then \
+				echo "$(YELLOW)   ⚠️  El account ID ($$ACCOUNT_ID) no es 000000000000$(NC)"; \
+				echo "$(YELLOW)   Actualiza docker-compose.yml con el account ID correcto$(NC)"; \
+			fi; \
+		fi; \
+		echo "$(YELLOW)   URL esperada en docker-compose.yml: http://localstack:4566/000000000000/comparison-queue$(NC)"; \
 		QUEUES=$$(curl -s -X POST http://localhost:4566/ \
 			-H "Content-Type: application/x-amz-json-1.0" \
 			-H "X-Amz-Target: AWSSimpleQueueServiceV20121105.ListQueues" \
 			-d '{}' 2>/dev/null); \
 		if [ -n "$$QUEUES" ]; then \
-			echo "Todas las colas:"; \
+			echo ""; \
+			echo "Todas las colas disponibles:"; \
 			echo "$$QUEUES" | python3 -m json.tool 2>/dev/null || echo "$$QUEUES"; \
 		fi; \
 	else \
 		echo "$(RED)❌ Cola 'comparison-queue' NO existe$(NC)"; \
+		if [ -n "$$GET_QUEUE_RESPONSE" ]; then \
+			echo "$(YELLOW)   Respuesta recibida: $$GET_QUEUE_RESPONSE$(NC)"; \
+		else \
+			echo "$(YELLOW)   No se recibió respuesta del servidor$(NC)"; \
+		fi; \
 		QUEUES=$$(curl -s -X POST http://localhost:4566/ \
 			-H "Content-Type: application/x-amz-json-1.0" \
 			-H "X-Amz-Target: AWSSimpleQueueServiceV20121105.ListQueues" \
 			-d '{}' 2>/dev/null); \
 		if [ -n "$$QUEUES" ]; then \
+			echo ""; \
 			echo "Colas disponibles:"; \
 			echo "$$QUEUES" | python3 -m json.tool 2>/dev/null || echo "$$QUEUES"; \
 		fi; \
+		echo ""; \
 		echo "$(YELLOW)Ejecuta: make docker-init-resources$(NC)"; \
 	fi
 	@echo ""
 	@echo "$(GREEN)✅ Verificación completada$(NC)"
+
+## docker-sqs-list: List SQS queues (equivalent to awslocal sqs list-queues)
+docker-sqs-list: check-docker
+	@echo "$(GREEN)Listando colas SQS en LocalStack...$(NC)"
+	@if command -v awslocal >/dev/null 2>&1; then \
+		awslocal sqs list-queues; \
+	elif command -v aws >/dev/null 2>&1; then \
+		aws --endpoint-url=http://localhost:4566 sqs list-queues --region us-east-1; \
+	else \
+		RESPONSE=$$(curl -s -X POST http://localhost:4566/ \
+			-H "Content-Type: application/x-amz-json-1.0" \
+			-H "X-Amz-Target: AWSSimpleQueueServiceV20121105.ListQueues" \
+			-d '{}' 2>&1); \
+		if command -v python3 >/dev/null 2>&1; then \
+			echo "$$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$$RESPONSE"; \
+		else \
+			echo "$$RESPONSE"; \
+		fi; \
+	fi

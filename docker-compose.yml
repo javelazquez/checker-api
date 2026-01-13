@@ -6,15 +6,15 @@ services:
       - "4566:4566"            # LocalStack Gateway
     environment:
       - SERVICES=sqs,dynamodb
+      - AWS_DEFAULT_REGION=us-east-1
       - DEBUG=0
       - DATA_DIR=/tmp/localstack/data
-      - AWS_DEFAULT_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - PERSISTENCE=1
       - LAMBDA_EXECUTOR=local
     volumes:
-      - "./scripts/localstack-init:/etc/localstack/init/ready.d/localstack-init:ro"
+      - "./localstack-init:/etc/localstack/init/ready.d"
       - "localstack-data:/var/lib/localstack"
     restart: unless-stopped
     healthcheck:
