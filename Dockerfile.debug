@@ -1,0 +1,31 @@
+# Debug stage - includes Delve debugger
+FROM golang:1.25-alpine
+
+# Install build dependencies and Delve
+RUN apk add --no-cache git make
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+ENV PATH=$PATH:/go/bin
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Generate Swagger documentation
+RUN swag init -g cmd/server/main.go -o docs
+
+# Expose ports: 8080 for HTTP, 2345 for Delve debugger
+EXPOSE 8080 2345
+
+# Run with Delve in headless mode using dlv debug (better breakpoint support)
+# --continue makes the program start automatically (Swagger works immediately)
+# --accept-multiclient allows multiple debugger connections
+CMD ["dlv", "debug", "./cmd/server/main.go", "--listen=:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "--continue"]

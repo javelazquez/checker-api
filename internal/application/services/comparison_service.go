@@ -1,12 +1,14 @@
 package services
 
 import (
+	"context"
+	"fmt"
+
 	"checker-api/internal/domain"
 	"checker-api/internal/domain/entities"
 	"checker-api/internal/ports/input/service"
 	"checker-api/internal/ports/output/repository"
 	"checker-api/internal/ports/output/utility"
-	"context"
 )
 
 // ComparisonServiceImpl implements the ComparisonService port
@@ -89,6 +91,20 @@ func (s *ComparisonServiceImpl) ProcessMessage(ctx context.Context, rawMessage [
 	if err := s.comparisonRepo.Save(ctx, comparison); err != nil {
 		// TODO: Handle persistence error (consider retry, etc.)
 		return nil, err
+	}
+
+	return comparison, nil
+}
+
+// GetByID retrieves a comparison by its ID from the repository
+func (s *ComparisonServiceImpl) GetByID(ctx context.Context, id string) (*entities.Comparison, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id cannot be empty")
+	}
+
+	comparison, err := s.comparisonRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get comparison: %w", err)
 	}
 
 	return comparison, nil

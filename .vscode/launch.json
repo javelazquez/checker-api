@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Docker (Remote)",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "remotePath": "/app",
+            "port": 2345,
+            "host": "localhost",
+            "showLog": true,
+            "trace": "verbose",
+            "logOutput": "rpc",
+            "apiVersion": 2,
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

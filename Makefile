@@ -1,4 +1,4 @@
-.PHONY: run test build clean deps help swagger swagger-serve dev docker-build docker-up docker-down docker-logs docker-restart docker-clean docker-rebuild docker-ps docker-logs-api docker-logs-localstack docker-up-build docker-init-resources docker-up-init docker-check-resources docker-sqs-list
+.PHONY: run test build clean deps help swagger swagger-serve dev docker-build docker-up docker-down docker-logs docker-restart docker-clean docker-rebuild docker-ps docker-logs-api docker-logs-localstack docker-up-build docker-init-resources docker-up-init docker-check-resources docker-sqs-list docker-debug docker-debug-build docker-logs-debug
 
 # Variables
 BINARY_NAME=checker-api
@@ -72,6 +72,9 @@ help:
 	@echo "  $(YELLOW)make docker-up-init$(NC)       - Start containers and initialize resources"
 	@echo "  $(YELLOW)make docker-check-resources$(NC) - Check if DynamoDB table and SQS queue exist"
 	@echo "  $(YELLOW)make docker-sqs-list$(NC)        - List SQS queues (equivalent to awslocal sqs list-queues)"
+	@echo "  $(YELLOW)make docker-debug$(NC)           - Build and start application in debug mode (with Delve)"
+	@echo "  $(YELLOW)make docker-debug-build$(NC)     - Build Docker image for debug mode"
+	@echo "  $(YELLOW)make docker-logs-debug$(NC)      - Show logs for checker-api-debug service"
 
 ## run: Run the application
 run:
@@ -213,6 +216,26 @@ docker-rebuild: check-docker
 docker-ps: check-docker
 	@echo "$(GREEN)Running Docker containers:$(NC)"
 	@$(DOCKER_COMPOSE_CMD) ps
+
+## docker-debug-build: Build Docker image for debug mode
+docker-debug-build: check-docker
+	@echo "$(GREEN)Building Docker image for debug mode...$(NC)"
+	@$(DOCKER_COMPOSE_CMD) build checker-api-debug
+	@echo "$(GREEN)Debug image built$(NC)"
+
+## docker-debug: Build and start application in debug mode (with Delve)
+docker-debug: check-docker
+	@echo "$(GREEN)Starting application in debug mode...$(NC)"
+	@$(DOCKER_COMPOSE_CMD) up --build checker-api-debug
+	@echo "$(GREEN)Debug mode started$(NC)"
+	@echo "$(YELLOW)API available at http://localhost:8080$(NC)"
+	@echo "$(YELLOW)Debugger available at localhost:2345$(NC)"
+	@echo "$(YELLOW)Connect your debugger to localhost:2345$(NC)"
+
+## docker-logs-debug: Show logs for checker-api-debug service
+docker-logs-debug: check-docker
+	@echo "$(GREEN)Showing checker-api-debug logs...$(NC)"
+	@$(DOCKER_COMPOSE_CMD) logs -f checker-api-debug
 
 ## docker-init-resources: Verify DynamoDB table and SQS queue in LocalStack
 ## Note: Resources are created automatically by LocalStack init scripts in localstack-init/

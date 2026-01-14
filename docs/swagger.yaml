@@ -125,6 +125,37 @@ paths:
       summary: Compare two API responses
       tags:
       - comparisons
+  /compare/{id}:
+    get:
+      description: Retrieves a comparison from the repository by its ID
+      parameters:
+      - description: Comparison ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Comparison result
+          schema:
+            $ref: '#/definitions/model.CompareResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Comparison not found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Get a comparison by ID
+      tags:
+      - comparisons
 schemes:
 - http
 - https

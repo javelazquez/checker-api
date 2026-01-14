@@ -67,6 +67,53 @@
                     }
                 }
             }
+        },
+        "/compare/{id}": {
+            "get": {
+                "description": "Retrieves a comparison from the repository by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "comparisons"
+                ],
+                "summary": "Get a comparison by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comparison ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Comparison result",
+                        "schema": {
+                            "$ref": "#/definitions/model.CompareResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Comparison not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {

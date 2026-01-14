@@ -16,4 +16,7 @@ type ComparisonService interface {
 	// 3. Calculates the differences
 	// 4. Persists the result
 	ProcessMessage(ctx context.Context, rawMessage []byte) (*entities.Comparison, error)
+
+	// GetByID retrieves a comparison by its ID from the repository
+	GetByID(ctx context.Context, id string) (*entities.Comparison, error)
 }

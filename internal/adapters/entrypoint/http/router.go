@@ -28,6 +28,9 @@ func (r *Router) SetupRoutes() *http.ServeMux {
 	// Route for comparing responses
 	mux.HandleFunc("/api/v1/compare", r.comparisonHandler.Compare)
 
+	// Route for getting a comparison by ID
+	mux.HandleFunc("/api/v1/compare/", r.comparisonHandler.GetByID)
+
 	// Swagger documentation
 	mux.HandleFunc("/swagger/", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"), // The url pointing to API definition

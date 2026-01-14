@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"checker-api/internal/adapters/entrypoint/http/model"
 	"checker-api/internal/domain/entities"
@@ -91,6 +92,57 @@ func (h *ComparisonHandler) toCompareResponse(comparison *entities.Comparison) m
 		ID:          comparison.ID,
 		IsEqual:     comparison.IsEqual,
 		Differences: differences,
+	}
+}
+
+// GetByID handles the GET request to retrieve a comparison by ID
+// @Summary      Get a comparison by ID
+// @Description  Retrieves a comparison from the repository by its ID
+// @Tags         comparisons
+// @Produce      json
+// @Param        id   path      string  true  "Comparison ID"
+// @Success      200  {object}  model.CompareResponse  "Comparison result"
+// @Failure      400  {object}  model.ErrorResponse    "Invalid request"
+// @Failure      404  {object}  model.ErrorResponse    "Comparison not found"
+// @Failure      500  {object}  model.ErrorResponse    "Internal server error"
+// @Router       /compare/{id} [get]
+func (h *ComparisonHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	// Validate HTTP method
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract ID from path
+	// Path format: /api/v1/compare/{id}
+	id := strings.TrimPrefix(r.URL.Path, "/api/v1/compare/")
+	if id == "" || id == r.URL.Path {
+		h.respondError(w, http.StatusBadRequest, "Invalid request", "ID is required in the path")
+		return
+	}
+
+	// Call application service
+	comparison, err := h.comparisonService.GetByID(r.Context(), id)
+	if err != nil {
+		// Check if error is "not found"
+		if strings.Contains(err.Error(), "not found") {
+			h.respondError(w, http.StatusNotFound, "Comparison not found", err.Error())
+			return
+		}
+		h.respondError(w, http.StatusInternalServerError, "Failed to get comparison", err.Error())
+		return
+	}
+
+	// Convert entity to HTTP response
+	response := h.toCompareResponse(comparison)
+
+	// Respond
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// TODO: Log error
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
 	}
 }
 

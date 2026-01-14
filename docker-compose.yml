@@ -63,6 +63,44 @@ services:
     networks:
       - checker-network
 
+  checker-api-debug:
+    build:
+      context: .
+      dockerfile: Dockerfile.debug
+    container_name: checker-api-debug
+    ports:
+      - "8080:8080"         # HTTP API
+      - "2345:2345"         # Delve debugger
+    environment:
+      # Server configuration
+      - SERVER_PORT=8080
+      
+      # AWS Configuration for LocalStack
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      
+      # DynamoDB/KVS Configuration
+      - KVS_REGION=us-east-1
+      - KVS_TABLE_NAME=comparisons
+      - KVS_KEY_ATTRIBUTE_NAME=id
+      
+      # SQS Configuration
+      - SQS_REGION=us-east-1
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/comparison-queue
+      - SQS_MAX_NUMBER_OF_MESSAGES=10
+      - SQS_WAIT_TIME_SECONDS=20
+      - SQS_VISIBILITY_TIMEOUT=30
+      
+      # Environment
+      - ENV=local
+    depends_on:
+      localstack:
+        condition: service_healthy
+    networks:
+      - checker-network
+
 volumes:
   localstack-data:
     driver: local

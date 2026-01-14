@@ -50,6 +50,121 @@ Para eliminar también los volúmenes (datos de LocalStack):
 docker-compose down -v
 ```
 
+## Debugging
+
+El proyecto incluye configuración para debugging remoto usando Delve en un contenedor Docker.
+
+### Requisitos para debugging
+
+- Docker y Docker Compose (ya instalados)
+- VS Code con la extensión de Go instalada
+- Archivo `.vscode/launch.json` (ya incluido en el proyecto)
+
+### Pasos para ejecutar en modo debug
+
+1. **Construir la imagen de debug** (solo la primera vez o si cambias código):
+
+```bash
+docker compose build checker-api-debug
+```
+
+O usando Make:
+
+```bash
+make docker-debug-build
+```
+
+2. **Levantar el servicio de debug**:
+
+```bash
+docker compose up -d checker-api-debug
+```
+
+O usando Make:
+
+```bash
+make docker-debug
+```
+
+Esto iniciará:
+- **LocalStack**: Servicio que simula SQS y DynamoDB
+- **Checker API (Debug)**: La aplicación Go con Delve debugger en el puerto 2345
+
+3. **Verificar que todo esté corriendo**:
+
+```bash
+docker compose ps
+```
+
+Debes ver:
+- `checker-api-localstack` - Status: Up (healthy)
+- `checker-api-debug` - Status: Up
+
+4. **Ver los logs para confirmar que la aplicación inició**:
+
+```bash
+docker compose logs checker-api-debug --tail=20
+```
+
+O usando Make:
+
+```bash
+make docker-logs-debug
+```
+
+Deberías ver mensajes como:
+- "HTTP server starting on port 8080"
+- "Application started successfully"
+- "API server listening at: [::]:2345"
+
+### Conectarse desde VS Code
+
+1. **Coloca un breakpoint** en tu código (por ejemplo, en el handler que quieres depurar)
+
+2. **Abre VS Code** en el directorio del proyecto
+
+3. **Conéctate al debugger**:
+   - Abre la pestaña "Run and Debug" (Ctrl+Shift+D / Cmd+Shift+D)
+   - Selecciona "Debug Docker (Remote)" del dropdown
+   - Presiona F5 o haz clic en "Start Debugging"
+
+4. **Verifica la conexión**:
+   - Deberías ver en la barra inferior "Debugging" con el estado "connected"
+   - La pestaña "DEBUG CONSOLE" mostrará información de la conexión
+
+5. **Ejecuta tu código**:
+   - Accede a Swagger UI: http://localhost:8080/swagger/index.html
+   - Ejecuta un request desde Swagger
+   - El código se detendrá en tu breakpoint
+
+### Acceso a los servicios en modo debug
+
+- **API**: http://localhost:8080
+- **Swagger UI**: http://localhost:8080/swagger/index.html
+- **Debugger (Delve)**: localhost:2345 (para VS Code)
+- **LocalStack Dashboard**: http://localhost:4566/_localstack/health
+
+### Notas importantes sobre debugging
+
+- El programa inicia automáticamente con `--continue`, por lo que Swagger está disponible inmediatamente
+- Los breakpoints funcionan mejor si te conectas desde VS Code antes de ejecutar el código que quieres depurar
+- Si los breakpoints no se activan, intenta:
+  1. Reiniciar el contenedor: `docker compose restart checker-api-debug`
+  2. Conectarte desde VS Code inmediatamente después del reinicio
+  3. Luego ejecutar el request desde Swagger
+
+### Detener el modo debug
+
+```bash
+docker compose stop checker-api-debug
+```
+
+O para detener todo:
+
+```bash
+docker compose down
+```
+
 ## Configuración
 
 ### Variables de entorno
