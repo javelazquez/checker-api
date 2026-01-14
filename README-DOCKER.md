@@ -6,6 +6,7 @@ Este proyecto está dockerizado y utiliza LocalStack para simular los servicios 
 
 - Docker
 - Docker Compose
+- Go 1.25+ (para ejecución local y debugging)
 
 ## Uso
 
@@ -50,120 +51,102 @@ Para eliminar también los volúmenes (datos de LocalStack):
 docker-compose down -v
 ```
 
-## Debugging
+## Debugging Local (Recomendado para desarrollo)
 
-El proyecto incluye configuración para debugging remoto usando Delve en un contenedor Docker.
+Para desarrollo, puedes ejecutar la aplicación Go directamente en tu máquina (no en Docker) y conectarla a LocalStack que corre en Docker. Esto permite debugging completo con breakpoints en VS Code/Cursor.
 
-### Requisitos para debugging
+### Requisitos para debugging local
 
-- Docker y Docker Compose (ya instalados)
-- VS Code con la extensión de Go instalada
+- Go 1.25+ instalado
+- VS Code o Cursor con la extensión de Go instalada
+- LocalStack corriendo en Docker
 - Archivo `.vscode/launch.json` (ya incluido en el proyecto)
 
-### Pasos para ejecutar en modo debug
+### Pasos para debugging local
 
-1. **Construir la imagen de debug** (solo la primera vez o si cambias código):
-
-```bash
-docker compose build checker-api-debug
-```
-
-O usando Make:
+1. **Iniciar solo LocalStack** (sin la aplicación Go):
 
 ```bash
-make docker-debug-build
+docker compose up -d localstack
 ```
 
-2. **Levantar el servicio de debug**:
+2. **Verificar que LocalStack está corriendo**:
 
 ```bash
-docker compose up -d checker-api-debug
+docker compose ps localstack
 ```
 
-O usando Make:
+Debe mostrar `Status: Up (healthy)`
 
-```bash
-make docker-debug
-```
+3. **Ejecutar la aplicación en modo debug desde VS Code/Cursor**:
 
-Esto iniciará:
-- **LocalStack**: Servicio que simula SQS y DynamoDB
-- **Checker API (Debug)**: La aplicación Go con Delve debugger en el puerto 2345
-
-3. **Verificar que todo esté corriendo**:
-
-```bash
-docker compose ps
-```
-
-Debes ver:
-- `checker-api-localstack` - Status: Up (healthy)
-- `checker-api-debug` - Status: Up
-
-4. **Ver los logs para confirmar que la aplicación inició**:
-
-```bash
-docker compose logs checker-api-debug --tail=20
-```
-
-O usando Make:
-
-```bash
-make docker-logs-debug
-```
-
-Deberías ver mensajes como:
-- "HTTP server starting on port 8080"
-- "Application started successfully"
-- "API server listening at: [::]:2345"
-
-### Conectarse desde VS Code
-
-1. **Coloca un breakpoint** en tu código (por ejemplo, en el handler que quieres depurar)
-
-2. **Abre VS Code** en el directorio del proyecto
-
-3. **Conéctate al debugger**:
-   - Abre la pestaña "Run and Debug" (Ctrl+Shift+D / Cmd+Shift+D)
-   - Selecciona "Debug Docker (Remote)" del dropdown
+   - Abre el proyecto en VS Code/Cursor
+   - Ve a "Run and Debug" (Ctrl+Shift+D / Cmd+Shift+D)
+   - Selecciona "Debug Local" del dropdown
    - Presiona F5 o haz clic en "Start Debugging"
 
-4. **Verifica la conexión**:
-   - Deberías ver en la barra inferior "Debugging" con el estado "connected"
-   - La pestaña "DEBUG CONSOLE" mostrará información de la conexión
+4. **Colocar breakpoints y depurar**:
 
-5. **Ejecuta tu código**:
-   - Accede a Swagger UI: http://localhost:8080/swagger/index.html
-   - Ejecuta un request desde Swagger
-   - El código se detendrá en tu breakpoint
+   - Coloca breakpoints en tu código
+   - La aplicación se ejecutará localmente
+   - Los breakpoints funcionarán correctamente
+   - Puedes usar la Debug Console para inspeccionar variables
 
-### Acceso a los servicios en modo debug
+5. **Acceder a Swagger**:
 
-- **API**: http://localhost:8080
+Una vez que la aplicación esté corriendo:
 - **Swagger UI**: http://localhost:8080/swagger/index.html
-- **Debugger (Delve)**: localhost:2345 (para VS Code)
-- **LocalStack Dashboard**: http://localhost:4566/_localstack/health
+- **API**: http://localhost:8080
 
-### Notas importantes sobre debugging
+### Ejecutar la aplicación localmente sin debugger
 
-- El programa inicia automáticamente con `--continue`, por lo que Swagger está disponible inmediatamente
-- Los breakpoints funcionan mejor si te conectas desde VS Code antes de ejecutar el código que quieres depurar
-- Si los breakpoints no se activan, intenta:
-  1. Reiniciar el contenedor: `docker compose restart checker-api-debug`
-  2. Conectarte desde VS Code inmediatamente después del reinicio
-  3. Luego ejecutar el request desde Swagger
-
-### Detener el modo debug
+Si prefieres ejecutar sin el debugger de VS Code:
 
 ```bash
-docker compose stop checker-api-debug
+# Variables de entorno necesarias
+export AWS_ENDPOINT_URL=http://localhost:4566
+export AWS_REGION=us-east-1
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export KVS_REGION=us-east-1
+export KVS_TABLE_NAME=comparisons
+export KVS_KEY_ATTRIBUTE_NAME=id
+export SQS_REGION=us-east-1
+export SQS_QUEUE_URL=http://localhost:4566/000000000000/comparison-queue
+export SERVER_PORT=8080
+export ENV=local
+
+# Ejecutar la aplicación
+go run cmd/server/main.go
 ```
 
-O para detener todo:
+O crear un archivo `.env` en la raíz del proyecto con estas variables (el código las cargará automáticamente si `ENV=local`).
 
-```bash
-docker compose down
-```
+### Variables de entorno para debugging local
+
+Las siguientes variables de entorno están configuradas en `.vscode/launch.json`:
+
+- **AWS_ENDPOINT_URL**: `http://localhost:4566` - Endpoint de LocalStack
+- **AWS_REGION**: `us-east-1` - Región de AWS
+- **AWS_ACCESS_KEY_ID**: `test` - Credenciales de prueba
+- **AWS_SECRET_ACCESS_KEY**: `test` - Credenciales de prueba
+- **KVS_REGION**: `us-east-1` - Región para DynamoDB
+- **KVS_TABLE_NAME**: `comparisons` - Nombre de la tabla DynamoDB
+- **KVS_KEY_ATTRIBUTE_NAME**: `id` - Nombre del atributo clave
+- **SQS_REGION**: `us-east-1` - Región para SQS
+- **SQS_QUEUE_URL**: `http://localhost:4566/000000000000/comparison-queue` - URL de la cola SQS
+- **SERVER_PORT**: `8080` - Puerto del servidor HTTP
+- **ENV**: `local` - Entorno local
+
+**Nota**: Asegúrate de que LocalStack esté corriendo antes de iniciar la aplicación localmente, ya que la aplicación necesita conectarse a DynamoDB y SQS.
+
+### Ventajas del debugging local
+
+- ✅ Breakpoints funcionan perfectamente
+- ✅ Debug Console disponible
+- ✅ Cambios en el código se reflejan inmediatamente (sin rebuild de Docker)
+- ✅ Más rápido que debugging remoto
+- ✅ Swagger disponible inmediatamente
 
 ## Configuración
 

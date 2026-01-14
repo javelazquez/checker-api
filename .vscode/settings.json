@@ -1,0 +1,7 @@
+{
+    "go.toolsGopath": "/Users/jvelazquez/go",
+    "go.alternateTools": {
+        "dlv": "/Users/jvelazquez/go/bin/dlv"
+    },
+    "go.useLanguageServer": true
+}

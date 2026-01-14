@@ -2,18 +2,25 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Docker (Remote)",
+            "name": "Debug Local",
             "type": "go",
-            "request": "attach",
-            "mode": "remote",
-            "remotePath": "/app",
-            "port": 2345,
-            "host": "localhost",
-            "showLog": true,
-            "trace": "verbose",
-            "logOutput": "rpc",
-            "apiVersion": 2,
-            "cwd": "${workspaceFolder}"
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/server/main.go",
+            "env": {
+                "AWS_ENDPOINT_URL": "http://localhost:4566",
+                "AWS_REGION": "us-east-1",
+                "AWS_ACCESS_KEY_ID": "test",
+                "AWS_SECRET_ACCESS_KEY": "test",
+                "KVS_REGION": "us-east-1",
+                "KVS_TABLE_NAME": "comparisons",
+                "KVS_KEY_ATTRIBUTE_NAME": "id",
+                "SQS_REGION": "us-east-1",
+                "SQS_QUEUE_URL": "http://localhost:4566/000000000000/comparison-queue",
+                "SERVER_PORT": "8080",
+                "ENV": "local"
+            },
+            "console": "integratedTerminal",
+            "showLog": true
         }
     ]
 }
