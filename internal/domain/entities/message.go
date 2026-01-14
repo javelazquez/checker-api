@@ -8,9 +8,9 @@ type Message struct {
 
 // Response represents an API response
 type Response struct {
-	Body    []byte
-	Headers map[string]string
-	Status  int
+	Body    []byte            // Body contains JSON-encoded response data
+	Headers map[string]string // Headers contains HTTP response headers
+	Status  int               // Status contains HTTP status code
 }
 
 // Comparison represents the result of comparing two responses
@@ -35,9 +35,9 @@ type Difference struct {
 type DifferenceType string
 
 const (
-	DifferenceTypeStatus   DifferenceType = "status"
-	DifferenceTypeHeader   DifferenceType = "header"
-	DifferenceTypeBody     DifferenceType = "body"
-	DifferenceTypeMissing  DifferenceType = "missing"
-	DifferenceTypeExtra    DifferenceType = "extra"
+	DifferenceTypeStatus  DifferenceType = "status"
+	DifferenceTypeHeader  DifferenceType = "header"
+	DifferenceTypeBody    DifferenceType = "body"
+	DifferenceTypeMissing DifferenceType = "missing"
+	DifferenceTypeExtra   DifferenceType = "extra"
 )
